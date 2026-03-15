@@ -359,6 +359,8 @@
     </main>
 
     <script>
+      const STORAGE_KEY = "brandgenie-chat-history";
+      const DRAFT_KEY = "brandgenie-chat-draft";
       const API_URL =
         "https://brandgenie.mastra.cloud/a2a/agent/brandGenieAgent";
       const ideaEl = document.getElementById("idea");
@@ -451,17 +453,59 @@
         chatEl.scrollTop = chatEl.scrollHeight;
       }
 
+      function saveConversation() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(conversationHistory));
+      }
+
+      function saveDraft() {
+        localStorage.setItem(DRAFT_KEY, ideaEl.value);
+      }
+
+      function renderConversation() {
+        chatEl.innerHTML =
+          '<div id="typing" class="typing">BrandGenie is thinking...</div>';
+        typingEl = document.getElementById("typing");
+
+        if (conversationHistory.length === 0) {
+          appendMessage(
+            "Welcome to BrandGenie 👋 Share your business idea, and I’ll return brand names, domain suggestions, a tagline, and a short brand story.",
+            "assistant",
+          );
+          return;
+        }
+
+        conversationHistory.forEach((message) => {
+          const text = message.parts?.[0]?.text || "";
+          appendMessage(text, message.role, message.role === "assistant");
+        });
+      }
+
+      function restoreConversation() {
+        try {
+          const savedHistory = JSON.parse(
+            localStorage.getItem(STORAGE_KEY) || "[]",
+          );
+          if (Array.isArray(savedHistory)) {
+            conversationHistory = savedHistory.filter(
+              (message) =>
+                message &&
+                (message.role === "user" || message.role === "assistant") &&
+                Array.isArray(message.parts),
+            );
+          }
+        } catch {
+          conversationHistory = [];
+        }
+
+        ideaEl.value = localStorage.getItem(DRAFT_KEY) || "";
+        renderConversation();
+      }
+
       function clearOutput() {
         conversationHistory = [];
-        chatEl.innerHTML = `
-          <div class="message assistant">
-            Welcome to BrandGenie 👋
-
-            Share your business idea, and I’ll return brand names, domain suggestions, a tagline, and a short brand story.
-          </div>
-          <div id="typing" class="typing">BrandGenie is thinking...</div>
-        `;
-        typingEl = document.getElementById("typing");
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(DRAFT_KEY);
+        renderConversation();
         setStatus("");
         ideaEl.value = "";
         ideaEl.focus();
@@ -476,7 +520,9 @@
 
         appendMessage(idea, "user");
         conversationHistory.push(createA2AMessage("user", idea));
+        saveConversation();
         ideaEl.value = "";
+        saveDraft();
 
         submitBtn.disabled = true;
         typingEl.style.display = "block";
@@ -511,9 +557,11 @@
 
           appendMessage(markdown, "assistant", true);
           conversationHistory.push(createA2AMessage("assistant", markdown));
+          saveConversation();
           setStatus("Response received and rendered successfully.", "ok");
         } catch (error) {
           conversationHistory.pop();
+          saveConversation();
           appendMessage(
             "Something went wrong while contacting BrandGenie. Please try again in a moment.",
             "assistant",
@@ -529,18 +577,22 @@
       document.querySelectorAll(".chip").forEach((chip) => {
         chip.addEventListener("click", () => {
           ideaEl.value = chip.getAttribute("data-example") || "";
+          saveDraft();
           ideaEl.focus();
         });
       });
 
       submitBtn.addEventListener("click", submitRequest);
       clearBtn.addEventListener("click", clearOutput);
+      ideaEl.addEventListener("input", saveDraft);
       ideaEl.addEventListener("keydown", (event) => {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
           submitRequest();
         }
       });
+
+      restoreConversation();
     </script>
   </body>
 </html>
