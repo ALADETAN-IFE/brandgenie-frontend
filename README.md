@@ -23,7 +23,7 @@ This is the **frontend** repository. The backend AI agent is located here:
 
 ## 🚀 Live Demo
 
-**[brandgenie-frontend.vercel.app](https://brandgenie-frontend.vercel.app)**
+**[BrandGenie Frontend](https://brandgenie-frontend.vercel.app)**
 
 ## 📝 License
 
