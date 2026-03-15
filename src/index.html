@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BrandGenie API Tester</title>
+    <title>BrandGenie Chat</title>
     <meta
       name="description"
       content="Frontend test console for the BrandGenie Mastra backend."
@@ -70,12 +70,6 @@
         line-height: 1.5;
       }
 
-      .grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-      }
-
       .field {
         display: grid;
         gap: 8px;
@@ -101,7 +95,8 @@
       }
 
       textarea {
-        min-height: 110px;
+        min-height: 84px;
+        max-height: 180px;
         line-height: 1.4;
       }
 
@@ -149,57 +144,77 @@
         color: var(--danger);
       }
 
-      .panel-title {
-        font-size: 1rem;
-        margin-bottom: 8px;
-        color: #cee0ff;
+      .chat-wrap {
+        height: 58vh;
+        min-height: 420px;
+        max-height: 700px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #0f1a30;
+        padding: 14px;
+        display: grid;
+        gap: 10px;
+        align-content: start;
       }
 
-      pre {
-        background: var(--panel-2);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 12px;
-        overflow: auto;
+      .message {
+        max-width: 84%;
+        border-radius: 12px;
+        padding: 10px 12px;
+        line-height: 1.5;
         white-space: pre-wrap;
         word-break: break-word;
-        color: #d6e2ff;
-        font-size: 0.88rem;
-        line-height: 1.4;
-        max-height: 300px;
       }
 
-      .result {
+      .message.user {
+        justify-self: end;
+        background: #2e6ea4;
+        color: #f4fbff;
+        border: 1px solid #4a8cc3;
+      }
+
+      .message.assistant {
+        justify-self: start;
         background: #101b31;
         border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 14px;
-        min-height: 160px;
+        color: #d6e2ff;
       }
 
-      .result h1,
-      .result h2,
-      .result h3 {
+      .message.assistant h1,
+      .message.assistant h2,
+      .message.assistant h3 {
         margin-top: 14px;
         margin-bottom: 8px;
         color: #eaf2ff;
       }
 
-      .result p,
-      .result li {
+      .message.assistant p,
+      .message.assistant li {
         color: #c5d5f8;
         line-height: 1.55;
         margin-bottom: 8px;
       }
 
-      .result hr {
+      .message.assistant hr {
         border: none;
         border-top: 1px solid #2a3b5f;
         margin: 12px 0;
       }
 
-      .result strong {
+      .message.assistant strong {
         color: #ffffff;
+      }
+
+      .typing {
+        display: none;
+        justify-self: start;
+        background: #141f38;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 10px 14px;
+        color: #cbd8f8;
+        font-size: 0.88rem;
       }
 
       .chips {
@@ -232,8 +247,11 @@
       }
 
       @media (max-width: 900px) {
-        .grid {
-          grid-template-columns: 1fr;
+        .chat-wrap {
+          height: 56vh;
+        }
+        .message {
+          max-width: 92%;
         }
       }
     </style>
@@ -241,30 +259,19 @@
   <body>
     <main class="wrap">
       <section class="hero">
-        <h1>BrandGenie Frontend Test Console</h1>
+        <h1>BrandGenie Chat</h1>
         <p>
-          This UI is purpose-built for your backend contract: JSON-RPC request
-          to the A2A route, then rendering the returned markdown from the agent
-          artifact.
+          Chat with BrandGenie to generate names, domain suggestions, and brand
+          identity direction from your business idea.
         </p>
       </section>
 
       <section class="card">
         <div class="field">
-          <label for="endpoint">Backend Endpoint</label>
-          <input
-            id="endpoint"
-            type="url"
-            value="https://brandgenie.mastra.cloud/a2a/agent/brandGenieAgent"
-            placeholder="https://your-host/a2a/agent/brandGenieAgent"
-          />
-        </div>
-
-        <div class="field">
           <label for="idea">Business Idea</label>
           <textarea
             id="idea"
-            placeholder="Describe the startup idea you want BrandGenie to brand..."
+            placeholder="Type your idea and press Enter or click Send..."
           ></textarea>
         </div>
 
@@ -296,48 +303,25 @@
         </div>
 
         <div class="actions">
-          <button id="submitBtn" class="btn-primary">
-            Generate Brand Identity
-          </button>
-          <button id="clearBtn" class="btn-secondary">Clear Output</button>
+          <button id="submitBtn" class="btn-primary">Send</button>
+          <button id="clearBtn" class="btn-secondary">New Chat</button>
         </div>
 
         <p id="status" class="status"></p>
       </section>
 
-      <section class="grid">
-        <article class="card">
-          <h2 class="panel-title">Rendered Agent Output</h2>
-          <div id="renderedResult" class="result">No result yet.</div>
-        </article>
-
-        <article class="card">
-          <h2 class="panel-title">Raw API Response</h2>
-          <pre id="rawResponse">No response yet.</pre>
-        </article>
-      </section>
-
-      <section class="grid">
-        <article class="card">
-          <h2 class="panel-title">JSON-RPC Payload Sent</h2>
-          <pre id="payloadPreview">No payload sent yet.</pre>
-        </article>
-
-        <article class="card">
-          <h2 class="panel-title">Extracted Markdown</h2>
-          <pre id="markdownPreview">No markdown extracted yet.</pre>
-        </article>
+      <section class="card">
+        <div id="chat" class="chat-wrap">
+          <div class="message assistant">
+            Welcome to BrandGenie 👋 Share your business idea, and I’ll return
+            brand names, domain suggestions, a tagline, and a short brand story.
+          </div>
+          <div id="typing" class="typing">BrandGenie is thinking...</div>
+        </div>
       </section>
 
       <p class="footer">
-        Backend repo:
-        <a
-          href="https://github.com/ALADETAN-IFE/Hng-stage3-be-ai-agent"
-          target="_blank"
-          rel="noreferrer"
-          >Hng-stage3-be-ai-agent</a
-        >
-        · Frontend repo:
+        Frontend repo:
         <a
           href="https://github.com/ALADETAN-IFE/brandgenie-frontend"
           target="_blank"
@@ -348,15 +332,14 @@
     </main>
 
     <script>
-      const endpointEl = document.getElementById("endpoint");
+      const API_URL =
+        "https://brandgenie.mastra.cloud/a2a/agent/brandGenieAgent";
       const ideaEl = document.getElementById("idea");
       const submitBtn = document.getElementById("submitBtn");
       const clearBtn = document.getElementById("clearBtn");
       const statusEl = document.getElementById("status");
-      const renderedResultEl = document.getElementById("renderedResult");
-      const rawResponseEl = document.getElementById("rawResponse");
-      const payloadPreviewEl = document.getElementById("payloadPreview");
-      const markdownPreviewEl = document.getElementById("markdownPreview");
+      const chatEl = document.getElementById("chat");
+      let typingEl = document.getElementById("typing");
 
       function setStatus(message, type = "") {
         statusEl.textContent = message;
@@ -424,42 +407,54 @@
           .join("");
       }
 
+      function appendMessage(text, role, isMarkdown = false) {
+        const message = document.createElement("div");
+        message.className = `message ${role}`;
+        if (isMarkdown) {
+          message.innerHTML = markdownToHtml(text);
+        } else {
+          message.textContent = text;
+        }
+        chatEl.insertBefore(message, typingEl);
+        chatEl.scrollTop = chatEl.scrollHeight;
+      }
+
       function clearOutput() {
-        rawResponseEl.textContent = "No response yet.";
-        payloadPreviewEl.textContent = "No payload sent yet.";
-        markdownPreviewEl.textContent = "No markdown extracted yet.";
-        renderedResultEl.textContent = "No result yet.";
+        chatEl.innerHTML = `
+          <div class="message assistant">
+            Welcome to BrandGenie 👋
+
+            Share your business idea, and I’ll return brand names, domain suggestions, a tagline, and a short brand story.
+          </div>
+          <div id="typing" class="typing">BrandGenie is thinking...</div>
+        `;
+        typingEl = document.getElementById("typing");
         setStatus("");
       }
 
       async function submitRequest() {
-        const endpoint = endpointEl.value.trim();
         const idea = ideaEl.value.trim();
-
-        if (!endpoint) {
-          setStatus("Provide a backend endpoint URL.", "error");
-          return;
-        }
         if (idea.length < 5) {
           setStatus("Business idea should be at least 5 characters.", "error");
           return;
         }
 
-        const payload = buildPayload(idea);
-        payloadPreviewEl.textContent = JSON.stringify(payload, null, 2);
+        appendMessage(idea, "user");
+        ideaEl.value = "";
 
         submitBtn.disabled = true;
+        typingEl.style.display = "block";
         setStatus("Sending request to BrandGenie backend...");
 
         try {
-          const response = await fetch(endpoint, {
+          const payload = buildPayload(idea);
+          const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
 
           const data = await response.json();
-          rawResponseEl.textContent = JSON.stringify(data, null, 2);
 
           if (!response.ok) {
             throw new Error(`HTTP ${response.status} ${response.statusText}`);
@@ -478,13 +473,18 @@
             );
           }
 
-          markdownPreviewEl.textContent = markdown;
-          renderedResultEl.innerHTML = markdownToHtml(markdown);
+          appendMessage(markdown, "assistant", true);
           setStatus("Response received and rendered successfully.", "ok");
         } catch (error) {
-          setStatus(`Request failed: ${error.message}`, "error");
+          appendMessage(
+            "Something went wrong while contacting BrandGenie. Please try again in a moment.",
+            "assistant",
+          );
+          setStatus("Request failed. Please try again.", "error");
         } finally {
+          typingEl.style.display = "none";
           submitBtn.disabled = false;
+          chatEl.scrollTop = chatEl.scrollHeight;
         }
       }
 
@@ -498,7 +498,8 @@
       submitBtn.addEventListener("click", submitRequest);
       clearBtn.addEventListener("click", clearOutput);
       ideaEl.addEventListener("keydown", (event) => {
-        if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
           submitRequest();
         }
       });
