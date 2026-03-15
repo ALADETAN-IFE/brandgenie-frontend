@@ -48,6 +48,11 @@
         gap: 16px;
       }
 
+      .chat-card {
+        padding: 0;
+        overflow: hidden;
+      }
+
       .hero,
       .card {
         background: linear-gradient(
@@ -73,7 +78,6 @@
       .field {
         display: grid;
         gap: 8px;
-        margin-bottom: 12px;
       }
 
       label {
@@ -104,6 +108,16 @@
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
+      }
+
+      .composer {
+        display: grid;
+        gap: 12px;
+        padding: 16px 18px 18px;
+        border-top: 1px solid var(--border);
+        background: linear-gradient(180deg, #10192d, #0d1527);
+        position: sticky;
+        bottom: 0;
       }
 
       button {
@@ -149,10 +163,8 @@
         min-height: 420px;
         max-height: 700px;
         overflow-y: auto;
-        border: 1px solid var(--border);
-        border-radius: 12px;
         background: #0f1a30;
-        padding: 14px;
+        padding: 18px;
         display: grid;
         gap: 10px;
         align-content: start;
@@ -221,7 +233,6 @@
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
-        margin-bottom: 10px;
       }
 
       .chip {
@@ -232,6 +243,19 @@
         padding: 6px 10px;
         font-size: 0.82rem;
         cursor: pointer;
+      }
+
+      .chat-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 16px 18px 0;
+      }
+
+      .chat-toolbar h2 {
+        font-size: 1rem;
+        color: #cee0ff;
       }
 
       .footer {
@@ -266,57 +290,60 @@
         </p>
       </section>
 
-      <section class="card">
-        <div class="field">
-          <label for="idea">Business Idea</label>
-          <textarea
-            id="idea"
-            placeholder="Type your idea and press Enter or click Send..."
-          ></textarea>
-        </div>
-
-        <div class="chips">
-          <button
-            class="chip"
-            data-example="sports streaming platform for African fans"
-          >
-            Sports streaming
-          </button>
-          <button
-            class="chip"
-            data-example="AI tutoring app for secondary school students"
-          >
-            AI tutoring
-          </button>
-          <button
-            class="chip"
-            data-example="fintech app for freelance invoice payments"
-          >
-            Fintech invoicing
-          </button>
-          <button
-            class="chip"
-            data-example="eco-friendly fashion marketplace for Gen Z"
-          >
-            Eco fashion
-          </button>
-        </div>
-
-        <div class="actions">
-          <button id="submitBtn" class="btn-primary">Send</button>
+      <section class="card chat-card">
+        <div class="chat-toolbar">
+          <h2>Conversation</h2>
           <button id="clearBtn" class="btn-secondary">New Chat</button>
         </div>
-
-        <p id="status" class="status"></p>
-      </section>
-
-      <section class="card">
         <div id="chat" class="chat-wrap">
           <div class="message assistant">
             Welcome to BrandGenie 👋 Share your business idea, and I’ll return
             brand names, domain suggestions, a tagline, and a short brand story.
           </div>
           <div id="typing" class="typing">BrandGenie is thinking...</div>
+        </div>
+
+        <div class="composer">
+          <div class="chips">
+            <button
+              class="chip"
+              data-example="sports streaming platform for African fans"
+            >
+              Sports streaming
+            </button>
+            <button
+              class="chip"
+              data-example="AI tutoring app for secondary school students"
+            >
+              AI tutoring
+            </button>
+            <button
+              class="chip"
+              data-example="fintech app for freelance invoice payments"
+            >
+              Fintech invoicing
+            </button>
+            <button
+              class="chip"
+              data-example="eco-friendly fashion marketplace for Gen Z"
+            >
+              Eco fashion
+            </button>
+          </div>
+
+          <div class="field">
+            <label for="idea">Message</label>
+            <textarea
+              id="idea"
+              placeholder="Describe your brand idea. Press Enter to send, Shift+Enter for a new line..."
+            ></textarea>
+          </div>
+
+          <div class="actions">
+            <button id="submitBtn" class="btn-primary">Send</button>
+          </div>
+
+          <p id="status" class="status"></p>
         </div>
       </section>
 
@@ -340,27 +367,32 @@
       const statusEl = document.getElementById("status");
       const chatEl = document.getElementById("chat");
       let typingEl = document.getElementById("typing");
+      let conversationHistory = [];
 
       function setStatus(message, type = "") {
         statusEl.textContent = message;
         statusEl.className = type ? `status ${type}` : "status";
       }
 
-      function buildPayload(idea) {
+      function createA2AMessage(role, text) {
+        return {
+          role,
+          parts: [
+            {
+              kind: "text",
+              text,
+            },
+          ],
+        };
+      }
+
+      function buildPayload(messages) {
         return {
           jsonrpc: "2.0",
           id: String(Date.now()),
           method: "agent.generate",
           params: {
-            message: {
-              role: "user",
-              parts: [
-                {
-                  kind: "text",
-                  text: idea,
-                },
-              ],
-            },
+            messages,
           },
         };
       }
@@ -420,6 +452,7 @@
       }
 
       function clearOutput() {
+        conversationHistory = [];
         chatEl.innerHTML = `
           <div class="message assistant">
             Welcome to BrandGenie 👋
@@ -430,6 +463,8 @@
         `;
         typingEl = document.getElementById("typing");
         setStatus("");
+        ideaEl.value = "";
+        ideaEl.focus();
       }
 
       async function submitRequest() {
@@ -440,6 +475,7 @@
         }
 
         appendMessage(idea, "user");
+        conversationHistory.push(createA2AMessage("user", idea));
         ideaEl.value = "";
 
         submitBtn.disabled = true;
@@ -447,7 +483,7 @@
         setStatus("Sending request to BrandGenie backend...");
 
         try {
-          const payload = buildPayload(idea);
+          const payload = buildPayload(conversationHistory);
           const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -474,8 +510,10 @@
           }
 
           appendMessage(markdown, "assistant", true);
+          conversationHistory.push(createA2AMessage("assistant", markdown));
           setStatus("Response received and rendered successfully.", "ok");
         } catch (error) {
+          conversationHistory.pop();
           appendMessage(
             "Something went wrong while contacting BrandGenie. Please try again in a moment.",
             "assistant",
